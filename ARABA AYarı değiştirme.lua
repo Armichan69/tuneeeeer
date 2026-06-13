@@ -1,10 +1,9 @@
 -- =================================================================
--- CONTROL PANEL: TUNER (PRO EDITION)
+-- CONTROL PANEL: TUNER (PRO & ANTI-FLING EDITION)
 -- DEVELOPED & CUSTOMIZED BY: Arman
 -- =================================================================
 
 local VenyxLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/Documantation12/Universal-Vehicle-Script/main/Library.lua"))()
--- Menü başlığına Arman watermark'ı eklendi
 local Venyx = VenyxLibrary.new("Tuner | by Arman", 5013109572)
 
 local Players = game:GetService("Players")
@@ -12,10 +11,10 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Varsayılan Menü Açma/Kapatma Tuşu ( ']' )
-local menuToggleKey = Enum.KeyCode.RightBracket
+-- Menü Açma/Kapatma Tuşu (SAĞ CTRL)
+local menuToggleKey = Enum.KeyCode.RightControl
 
--- Premium Pro Tema (Karanlık Safir & Agresif Kırmızı)
+-- Karanlık ve Kırmızı Modern Tema
 local Theme = {
 	Background = Color3.fromRGB(15, 15, 20), 
 	Glow = Color3.fromRGB(255, 30, 30), 
@@ -37,31 +36,49 @@ local function GetVehicleFromDescendant(Descendant)
 		Descendant:FindFirstAncestorWhichIsA("Model")
 end
 
--- MENÜ SAYFASI
 local vehiclePage = Venyx:addPage("Araç Kontrolü", 8356815386)
 
--- WATERMARK SEKMESİ (Menü içinde görünür)
-local creditSection = vehiclePage:addSection("Lisans & Yapımcı")
-creditSection:addButton("Tuner Status: PRO MODE ACTIVE", function() end)
+local creditSection = vehiclePage:addSection("Sistem Bilgisi")
+creditSection:addButton("System Status: ANTI-FLING SAFE MODE", function() end)
 creditSection:addButton("Authorized Edition: by Arman", function() end)
 
--- 1. GENEL AYARLAR
+-- Tüm bağlantıları burada topla, kapatma butonu için
+local AllConnections = {}
+
+-- 1. GENEL AYARLAR & ÖZEL TUŞ ATAMA
 local usageSection = vehiclePage:addSection("Genel Ayarlar")
 local velocityEnabled = true
-usageSection:addToggle("Hile Fonksiyonları", velocityEnabled, function(v) velocityEnabled = v end)
+usageSection:addToggle("Hileleri Aktif Et", velocityEnabled, function(v) velocityEnabled = v end)
 
-usageSection:addKeybind("Menü Kısayol Tuşu", menuToggleKey, function()
+usageSection:addKeybind("Menü Aç/Kapat Tuşu", menuToggleKey, function()
     Venyx:toggle()
 end, function(v)
     menuToggleKey = v.KeyCode
+    print("Yeni menü kısayolu atandı: " .. tostring(menuToggleKey))
+end)
+
+-- HİLEYİ TAMAMEN KAPATMA BUTONU (X)
+usageSection:addButton("MENÜYÜ TAMAMEN KAPAT [X]", function()
+	-- Tüm bağlantıları temizle
+	for _, conn in ipairs(AllConnections) do
+		pcall(function() conn:Disconnect() end)
+	end
+	-- Venyx UI'yi yok et
+	pcall(function() Venyx:destroy() end)
+	-- Eğer GUI kaldıysa direkt temizle
+	for _, gui in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+		if gui:IsA("ScreenGui") and gui.Name:find("Venyx") then
+			gui:Destroy()
+		end
+	end
 end)
 
 
--- 2. MOTOR GÜCÜ (PRO ADDITIVE TORQUE)
-local speedSection = vehiclePage:addSection("Motor Gücü (Tork & Beygir)")
-local velocityMult = 10 -- Yeni toplamsal güç birimi
+-- 2. MOTOR GÜCÜ (BUG-FREE ADDITIVE TORK)
+local speedSection = vehiclePage:addSection("Motor Gücü (Tork)")
+local velocityMult = 5 
 
-speedSection:addSlider("Tork İvme Gücü", 10, 0, 100, function(v) velocityMult = v end)
+speedSection:addSlider("Tork İvme Gücü", 25, 0, 100, function(v) velocityMult = v / 2 end)
 
 local velocityEnabledKeyCode = Enum.KeyCode.W
 speedSection:addKeybind("Gaza Basma Tuşu", velocityEnabledKeyCode, function()
@@ -69,12 +86,13 @@ speedSection:addKeybind("Gaza Basma Tuşu", velocityEnabledKeyCode, function()
 	while UserInputService:IsKeyDown(velocityEnabledKeyCode) do
 		task.wait(0)
 		local Character = LocalPlayer.Character
-		if Character then
+		if Character and typeof(Character) == "Instance" then
 			local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
-			if Humanoid and Humanoid.SeatPart and Humanoid.SeatPart:IsA("VehicleSeat") then
+			if Humanoid and typeof(Humanoid) == "Instance" then
 				local SeatPart = Humanoid.SeatPart
-				-- BUG FIX: Çarpmak yerine arabanın baktığı yöne (LookVector) temiz ekstra kuvvet ekleniyor.
-				SeatPart.AssemblyLinearVelocity = SeatPart.AssemblyLinearVelocity + (SeatPart.CFrame.LookVector * (velocityMult * 0.25))
+				if SeatPart and typeof(SeatPart) == "Instance" and SeatPart:IsA("VehicleSeat") then
+					SeatPart.AssemblyLinearVelocity = SeatPart.AssemblyLinearVelocity + (SeatPart.CFrame.LookVector * velocityMult)
+				end
 			end
 		end
 		if not velocityEnabled then break end
@@ -82,16 +100,25 @@ speedSection:addKeybind("Gaza Basma Tuşu", velocityEnabledKeyCode, function()
 end, function(v) velocityEnabledKeyCode = v.KeyCode end)
 
 
--- 3. BUGSIZ HANDLING & AKILLI DOWNFORCE
+-- 3. YOL TUTUŞ & DOWNFORCE
 local handlingSection = vehiclePage:addSection("Yol Tutuş & Downforce")
 local downforceMult = 0
 local handlingMult = 0
 
-handlingSection:addSlider("Downforce (Yere Basma)", 0, 0, 100, function(v) downforceMult = v end)
-handlingSection:addSlider("Handling (Dönüş Keskinliği)", 0, 0, 100, function(v) handlingMult = v end)
+handlingSection:addSlider("Downforce (Yere Yapışma Gücü)", 0, 0, 100, function(v) downforceMult = v * 3 end)
+handlingSection:addSlider("Handling (Dönüş Hassasiyeti)", 0, 0, 100, function(v) handlingMult = v * 0.2 end)
 
 
--- 4. GELİŞMİŞ FREN SİSTEMİ
+-- 4. VİRAJ TUTUŞ SİSTEMİ (ANTI-DRIFT) - EĞİMLİ ZEMİN DESTEKLİ
+local gripSection = vehiclePage:addSection("Viraj Tutusu (Anti-Kayma)")
+local gripEnabled = false
+local gripStrength = 0.5 
+
+gripSection:addToggle("Viraj Tutusunu Aktif Et", false, function(v) gripEnabled = v end)
+gripSection:addSlider("Tutuş Gucu (0=Normal, 100=Tam Tutus)", 50, 0, 100, function(v) gripStrength = v / 100 end)
+
+
+-- 5. FREN SİSTEMİ (LOKAL GÜVENLİ FREN)
 local decelerateSelection = vehiclePage:addSection("Fren Sistemi")
 local qbEnabledKeyCode = Enum.KeyCode.S
 local brakePower = 0.15
@@ -103,34 +130,38 @@ decelerateSelection:addKeybind("Fren Tuşu", qbEnabledKeyCode, function()
 	while UserInputService:IsKeyDown(qbEnabledKeyCode) do
 		task.wait(0)
 		local Character = LocalPlayer.Character
-		if Character then
+		if Character and typeof(Character) == "Instance" then
 			local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
-			if Humanoid and Humanoid.SeatPart and Humanoid.SeatPart:IsA("VehicleSeat") then
+			if Humanoid and typeof(Humanoid) == "Instance" then
 				local SeatPart = Humanoid.SeatPart
-				-- Fren yaparken sadece ileri/geri eksenini yavaşlat, zıplama fiziğini bozma
-				local localVel = SeatPart.CFrame:VectorToObjectSpace(SeatPart.AssemblyLinearVelocity)
-				localVel = Vector3.new(localVel.X, localVel.Y, localVel.Z * (1 - brakePower))
-				SeatPart.AssemblyLinearVelocity = SeatPart.CFrame:VectorToWorldSpace(localVel)
+				if SeatPart and typeof(SeatPart) == "Instance" and SeatPart:IsA("VehicleSeat") then
+					local localVel = SeatPart.CFrame:VectorToObjectSpace(SeatPart.AssemblyLinearVelocity)
+					localVel = Vector3.new(localVel.X * (1 - brakePower), localVel.Y, localVel.Z * (1 - brakePower))
+					SeatPart.AssemblyLinearVelocity = SeatPart.CFrame:VectorToWorldSpace(localVel)
+				end
 			end
 		end
 		if not velocityEnabled then break end
 	end
 end, function(v) qbEnabledKeyCode = v.KeyCode end)
 
-decelerateSelection:addKeybind("El Freni (Anında Çak)", Enum.KeyCode.P, function()
+decelerateSelection:addKeybind("El Freni (Anında Dur)", Enum.KeyCode.P, function(v)
 	if not velocityEnabled then return end
 	local Character = LocalPlayer.Character
-	if Character then
+	if Character and typeof(Character) == "Instance" then
 		local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
-		if Humanoid and Humanoid.SeatPart and Humanoid.SeatPart:IsA("VehicleSeat") then
-			Humanoid.SeatPart.AssemblyLinearVelocity = Vector3.new(0,0,0)
-			Humanoid.SeatPart.AssemblyAngularVelocity = Vector3.new(0,0,0)
+		if Humanoid and typeof(Humanoid) == "Instance" then
+			local SeatPart = Humanoid.SeatPart
+			if SeatPart and typeof(SeatPart) == "Instance" and SeatPart:IsA("VehicleSeat") then
+				SeatPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+				SeatPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+			end
 		end
 	end
 end)
 
 
--- 5. UÇMA MODU & KUSURSUZ ANLIK FİZİK DÖNGÜSÜ
+-- 6. UÇMA MODU & ANLIK FİZİK DÖNGÜSÜ
 local flightSection = vehiclePage:addSection("Uçma Modu (Fly)")
 local flightEnabled = false
 local flightSpeed = 1
@@ -139,7 +170,7 @@ flightSection:addToggle("Uçmayı Aç", false, function(v) flightEnabled = v end
 flightSection:addSlider("Uçuş Hızı", 100, 0, 800, function(v) flightSpeed = v / 100 end)
 
 local defaultCharacterParent 
-RunService.Stepped:Connect(function()
+local steppedConn = RunService.Stepped:Connect(function()
 	local Character = LocalPlayer.Character
 	if flightEnabled == true then
 		if Character and typeof(Character) == "Instance" then
@@ -166,7 +197,6 @@ RunService.Stepped:Connect(function()
 			end
 		end
 	else
-		-- ARMAN PRO MODE: GÜVENLİ VE BUGSIZ VİRAJ/DOWNFORCE FİZİĞİ
 		if Character and typeof(Character) == "Instance" then
 			Character.Parent = defaultCharacterParent or Character.Parent
 			defaultCharacterParent = Character.Parent
@@ -177,29 +207,44 @@ RunService.Stepped:Connect(function()
 					local SeatPart = Humanoid.SeatPart
 					if SeatPart and typeof(SeatPart) == "Instance" and SeatPart:IsA("VehicleSeat") then
 						
-						-- PRO DOWNFORCE: Sadece dünya ekseninde aşağı doğru dengeli bir baskı uygular. 
-						-- Asla sarsıntı yaratmaz, tekerleri yere kilitler.
-						if downforceMult > 0 then
-							SeatPart.AssemblyLinearVelocity = SeatPart.AssemblyLinearVelocity + Vector3.new(0, -downforceMult * 0.4, 0)
+						local currentVel = SeatPart.AssemblyLinearVelocity
+						
+						-- =================================================================
+						-- VİRAJ TUTUŞ SİSTEMİ (ANTI-DRIFT) - EĞİMLİ ZEMİN DESTEKLİ
+						-- Düzlem projeksiyonu yerine LOCAL koordinat sistemi kullanılır.
+						-- Böylece yokuş yukarı/bayır aşağı momentumu korunur,
+						-- sadece yanal (sağ/sol) kayma azaltılır.
+						-- =================================================================
+						if gripEnabled and gripStrength > 0 then
+							-- Hız vektörünü arabanın yerel (local) uzayına çevir
+							local localVel = SeatPart.CFrame:VectorToObjectSpace(currentVel)
+							
+							-- Sadece yanal (local X) kaymayı azalt.
+							-- Local Y (yokuş/bayır) ve Local Z (ileri/geri) DOKUNULMAZ.
+							local correctedLocalVel = Vector3.new(
+								localVel.X * (1 - gripStrength * 0.2),
+								localVel.Y,
+								localVel.Z
+							)
+							
+							-- Düzeltme sonucunu tekrar dünya koordinatlarına çevir
+							SeatPart.AssemblyLinearVelocity = SeatPart.CFrame:VectorToWorldSpace(correctedLocalVel)
 						end
 						
-						-- ANTI-FLIP & STABILIZER: Arabanın sağa sola yatarak takla atmasını ve uçmasını engeller.
-						-- X ve Z dönme hızlarını sönümler, araba daima düz kalır.
-						local currentAng = SeatPart.AssemblyAngularVelocity
-						SeatPart.AssemblyAngularVelocity = Vector3.new(currentAng.X * 0.1, currentAng.Y, currentAng.Z * 0.1)
+						-- DOWNFORCE: Arabanın altına doğru, eğime uygun kuvvet
+						if downforceMult > 0 then
+							SeatPart:ApplyImpulse(-SeatPart.CFrame.UpVector * downforceMult * (SeatPart.AssemblyMass * 0.05))
+						end
 						
-						-- PRO HANDLING: Tuşa basıldığı sürece sarsıntısız, yumuşak dönme torku ekler.
+						-- HANDLING: Daha kontrollü dönüş, sonsuz spin engeli
 						if handlingMult > 0 then
-							if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-								SeatPart.AssemblyAngularVelocity = SeatPart.AssemblyAngularVelocity + Vector3.new(0, handlingMult * 0.05, 0)
-							elseif UserInputService:IsKeyDown(Enum.KeyCode.D) then
-								SeatPart.AssemblyAngularVelocity = SeatPart.AssemblyAngularVelocity + Vector3.new(0, -handlingMult * 0.05, 0)
-							end
+							SeatPart.AssemblyAngularVelocity = SeatPart.AssemblyAngularVelocity * 0.95
 							
-							-- Dönüş hızının sonsuza gidip arabayı fırlatmaması için sınır (Clamp) koyduk
-							local maxTurn = (handlingMult * 0.1) + 2
-							local rot = SeatPart.AssemblyAngularVelocity
-							SeatPart.AssemblyAngularVelocity = Vector3.new(rot.X, math.clamp(rot.Y, -maxTurn, maxTurn), rot.Z)
+							if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+								SeatPart:ApplyAngularImpulse(Vector3.new(0, handlingMult * SeatPart.AssemblyMass, 0))
+							elseif UserInputService:IsKeyDown(Enum.KeyCode.D) then
+								SeatPart:ApplyAngularImpulse(Vector3.new(0, -handlingMult * SeatPart.AssemblyMass, 0))
+							end
 						end
 						
 					end
@@ -208,12 +253,11 @@ RunService.Stepped:Connect(function()
 		end
 	end
 end)
+table.insert(AllConnections, steppedConn)
 
--- MENÜ AÇMA / KAPATMA
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+local inputConn = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if not gameProcessedEvent and input.KeyCode == menuToggleKey then
         Venyx:toggle()
     end
 end)
-
-print("[PRO MODE]:  Tuner by Arman successfully loaded!")
+table.insert(AllConnections, inputConn)
